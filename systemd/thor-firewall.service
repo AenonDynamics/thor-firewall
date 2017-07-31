@@ -15,3 +15,6 @@ ExecStop=/usr/sbin/thor-firewall stop
 # Just Execute the shell script
 Type=oneshot
 RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
