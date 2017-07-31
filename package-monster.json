@@ -28,9 +28,9 @@
             "thor-firewall"
         ],
 
-        "files": {
-            "systemd/thor-firewall.service": "/lib/systemd/system/thor-firewall.service"
-        },
+        "files": [
+            ["systemd/thor-firewall.service", "/lib/systemd/system/thor-firewall.service"]
+        ],
 
         "scripts": {
         }
