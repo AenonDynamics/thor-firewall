@@ -29,7 +29,10 @@
         ],
 
         "files": [
-            ["systemd/thor-firewall.service", "/lib/systemd/system/thor-firewall.service"]
+            {
+                "src": "systemd/thor-firewall.service",
+                "dst": "/lib/systemd/system/thor-firewall.service"
+            }
         ],
 
         "scripts": {
