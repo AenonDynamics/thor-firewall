@@ -1,6 +1,6 @@
 {
     "name": "thor-firewall",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "package-monster": "0.2.0",
     "description": "THOR Firewall IPTables Loader",
     "license": "MIT",
