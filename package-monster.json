@@ -8,6 +8,8 @@
     "website": "https://github.com/AenonDynamics/thor-firewall",
     "bugs": "https://github.com/AenonDynamics/thor-firewall/issues",
     "multiversion": false,
+    "repository": "public",
+    "type": "script",
 
     "debian": {
 
