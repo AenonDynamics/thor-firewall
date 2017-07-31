@@ -16,7 +16,7 @@
 set -e
 
 # Config directory (debian, ubuntu)
-$CONF_DIR="/etc/thor-firewall"
+CONF_DIR="/etc/thor-firewall"
 
 # load config
 source "$CONF_DIR/thor.conf"
