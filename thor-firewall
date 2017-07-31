@@ -1,0 +1,274 @@
+#!/bin/bash
+
+#  _____ _   _  ___  ____       _____ _                        _ _
+# |_   _| | | |/ _ \|  _ \     |  ___(_)_ __ _____      ____ _| | |
+#   | | | |_| | | | | |_) |____| |_  | | '__/ _ \ \ /\ / / _` | | |
+#   | | |  _  | |_| |  _ <_____|  _| | | | |  __/\ V  V / (_| | | |
+#   |_| |_| |_|\___/|_| \_\    |_|   |_|_|  \___| \_/\_/ \__,_|_|_|
+#
+# iptables based firewall framework
+# License: MIT (X11) License
+# Copyright: 2015-2017 Andi Dittrich, 2016-2017 Aenon Dynamics
+# https://aenon-dynamics.com/go/thor-firewall
+#
+
+# fail on error
+set -e
+
+# Config directory (debian, ubuntu)
+$CONF_DIR="/etc/thor-firewall"
+
+# load config
+source "$CONF_DIR/thor.conf"
+
+# https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/Documentation/networking/ip-sysctl.txt
+sysctl_tweaks_ip4(){
+    # Enable source validation by reversed path, as specified in RFC1812, RFC3704 Strict Reverse Path
+    echo 1 > /proc/sys/net/ipv4/conf/all/rp_filter
+    echo 1 > /proc/sys/net/ipv4/conf/default/rp_filter
+
+    # Do not accept source routing RFC791
+    echo 0 > /proc/sys/net/ipv4/conf/all/accept_source_route
+    echo 0 > /proc/sys/net/ipv4/conf/default/accept_source_route
+
+    # Do not send ICMP Redirects ony any Interface
+    echo 0 > /proc/sys/net/ipv4/conf/all/send_redirects
+    echo 0 > /proc/sys/net/ipv4/conf/default/send_redirects
+
+    # Do not accept ICMP Redirects on any Interface
+    echo 0 > /proc/sys/net/ipv4/conf/all/accept_redirects
+    echo 0 > /proc/sys/net/ipv4/conf/default/accept_redirects
+
+    # Do not accept secure ICMP Redirects on any Interface
+    echo 0 > /proc/sys/net/ipv4/conf/all/secure_redirects
+    echo 0 > /proc/sys/net/ipv4/conf/default/secure_redirects
+
+    # Disable System Request debugging functionality of the kernel
+    echo 0 > /proc/sys/kernel/sysrq
+
+    # Ignore all ICMP ECHO and TIMESTAMP requests sent to it via broadcast/multicast
+    echo 1 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
+
+    # ICMP "bad error messages" protection
+    echo 1 > /proc/sys/net/ipv4/icmp_ignore_bogus_error_responses
+
+    # Prevent against the common 'syn flood attack'
+    echo 1 > /proc/sys/net/ipv4/tcp_syncookies
+    echo 2 > /proc/sys/net/ipv4/tcp_synack_retries
+
+    # Do NOT log martians - rejected by iptables
+    echo 0 > /proc/sys/net/ipv4/conf/all/log_martians
+    echo 0 > /proc/sys/net/ipv4/conf/default/log_martians
+
+    # Adress Space Randomization
+    echo 1 > /proc/sys/kernel/randomize_va_space
+
+    # ICMP Rate limiting to 200/s
+    echo 2 > /proc/sys/net/ipv4/icmp_ratelimit
+
+    # tcp fin timeout to 30
+    echo 30 > /proc/sys/net/ipv4/tcp_fin_timeout
+}
+
+# Simple Header
+# ---------------------------------------
+print_heading(){
+    if [ $# -ne 1 ]; then
+        return 1
+    fi
+
+    # light grey
+    echo -e '\x1B[1;34m'
+    echo "_______________________________________________________________"
+    echo ""
+    echo " $1"
+    echo "_______________________________________________________________"
+    echo -e '\x1B[39m'
+}
+
+# Startup Checks
+# ---------------------------------------
+fw_startup_check(){
+    # check for iptables
+    if [ ! -x $IPT ]; then
+        echo "Iptables command not found"
+        exit 1
+    fi
+
+    # check for ipset (not empty, bin available)
+    if [ ! -z $IPS ] && [ ! -x $IPS ]; then
+        echo "IPSET command not found"
+        exit 1
+    fi
+
+    # check for root user
+    USER_ID="$(id -u)"
+    if [ ! $USER_ID -eq 0 ]; then
+        echo "Please run this script as root"
+        exit 1
+    fi
+}
+
+# Flush all rules
+# ---------------------------------------
+fw_flush(){
+    # Flush all rules
+    $IPT -t filter -F
+    $IPT -t nat -F
+    $IPT -t mangle -F
+    $IPT -t raw -F
+
+    # Delete all custom chains
+    $IPT -t filter -X
+    $IPT -t nat -X
+    $IPT -t mangle -X
+    $IPT -t raw -X
+
+    # Flush all IP-sets
+    if [ ! -z $IPS ]; then
+        $IPS destroy
+    fi
+}
+
+# Router or Host Mode ? Select ip4/ip6
+# ---------------------------------------
+fw_operation_mode(){
+    # router or host mode ?
+    if [ "$CONF_OPERATION_MODE" = "router" ]; then
+        # enable routing
+        echo 1 > /proc/sys/net/ipv4/ip_forward
+    else
+        # disable routing
+        echo 0 > /proc/sys/net/ipv4/ip_forward
+    fi
+
+    # ip6 supported ? may missing on wrt firmware
+    if [ -d "/proc/sys/net/ipv6" ]; then
+        # ipv4 only ?
+        if [ "$CONF_PROTOCOLS" = "ip6" ]; then
+            # enable ipv6
+            echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6
+            echo 0 > /proc/sys/net/ipv6/conf/default/disable_ipv6
+        else
+            # disable ipv6
+            echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
+            echo 1 > /proc/sys/net/ipv6/conf/default/disable_ipv6
+        fi
+    fi
+   
+}
+
+# Flush all rules and set state to ALLOW ALL
+# ---------------------------------------
+fw_open(){
+    # Flush all rules
+    fw_flush
+
+    # Accept all packages (default policy on no match)
+    $IPT -t filter -P INPUT ACCEPT
+    $IPT -t filter -P FORWARD ACCEPT
+    $IPT -t filter -P OUTPUT ACCEPT
+}
+
+# Display the firewall status
+# ---------------------------------------
+fw_status(){
+    # Show Filter Table (Rules)
+    print_heading "Firewall Rules"
+    $IPT -t filter -n -L -v --line-numbers
+
+    # Show NAT Table
+    print_heading "NAT Table";
+    $IPT -t nat -n -L -v --line-numbers
+
+    # Show RAW Table
+    print_heading "RAW Table";
+    $IPT -t raw -n -L -v --line-numbers
+
+    # Show Mangle Table
+    print_heading "MANGLE Table";
+    $IPT -t mangle -n -L -v --line-numbers
+}
+
+# Load Ruleset
+# ---------------------------------------
+fw_rules(){
+    # Firewall Rules (external lists)
+    if [ -f "$CONF_DIR/fw_rules.conf" ]; then
+        while read ruleset
+        do
+            # apply rule
+            if [ ! -z "$ruleset" ]; then
+                $IPT $ruleset
+            fi
+        done < "$CONF_DIR/fw_rules.conf"
+    else
+        echo "ERROR: No Rules recognized"
+    fi
+}
+
+# Startup (Init)
+# Flush all rules and set state to BLOCK ALL
+# ---------------------------------------
+fw_startup(){
+    # check user, binaries
+    fw_startup_check
+
+    # Select Operation Mode
+    fw_operation_mode
+
+    # Apply Tweaks
+    sysctl_tweaks_ip4
+
+     # Flush all rules
+    fw_flush
+
+    # Drop all packages (default policy on no match)
+    $IPT -t filter -P INPUT DROP
+    $IPT -t filter -P FORWARD DROP
+    $IPT -t filter -P OUTPUT DROP
+
+     # apply firewall rules
+    fw_rules
+
+    # READY STATE
+    print_heading "SYSTEM ONLINE"
+}
+
+# Command Dispatching
+# ---------------------------------------
+case "$1" in
+    # general start/stop/restart actions
+    start)
+        fw_startup
+        exit 0
+    ;;
+
+    stop)
+        fw_flush
+        exit 0
+    ;;
+
+    restart)
+        fw_startup
+        exit 0
+    ;;
+
+    # Allow All
+    open)
+        print_heading "WARNING: Dropping all Firewall+NAT Rules and set system to ACCEPT ALL"
+        fw_open
+        exit 0
+    ;;
+
+    status)
+    fw_status
+    exit 0
+    ;;
+
+    *)
+        echo "$0: THOR Firewall/Router"
+        echo "$0: { start | stop | restart | status | open }"
+        exit 0
+    ;;
+esac

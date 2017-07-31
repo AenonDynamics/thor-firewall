@@ -1,0 +1,17 @@
+[Unit]
+Description=THOR Firewall
+
+# Start before Network Interfaces coming up
+Before=network-pre.target
+After=local-fs.target
+
+# Do not start after basic.target!
+DefaultDependencies=no
+
+[Service]
+ExecStart=/usr/sbin/thor-firewall start
+ExecStop=/usr/sbin/thor-firewall stop
+
+# Just Execute the shell script
+Type=oneshot
+RemainAfterExit=yes

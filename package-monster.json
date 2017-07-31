@@ -1,0 +1,39 @@
+{
+    "name": "thor-firewall",
+    "version": "0.1.0",
+    "package-monster": "0.2.0",
+    "description": "THOR Firewall IPTables Loader",
+    "license": "MIT",
+    "author": "Andi Dittrich <opensource@aenon-dynamics.com>",
+    "website": "https://github.com/AenonDynamics/thor-firewall",
+    "bugs": "https://github.com/AenonDynamics/thor-firewall/issues",
+    "multiversion": false,
+
+    "debian": {
+
+        "section": "net",
+        "priority": "extra",
+
+        "dependencies": [
+            "iptables",
+            "ipset"
+        ],
+
+        "conf": [
+            "fw_rules.conf",
+            "thor.conf"
+        ],
+
+        "sbin": [
+            "thor-firewall"
+        ],
+
+        "files": {
+            "systemd/thor-firewall.service": "/lib/systemd/system/thor-firewall.service"
+        },
+
+        "scripts": {
+        }
+    }
+
+}
