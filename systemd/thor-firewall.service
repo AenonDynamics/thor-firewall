@@ -3,6 +3,9 @@ Description=THOR Firewall
 
 # Start before Network Interfaces coming up
 Before=network-pre.target
+Wants=network-pre.target
+
+# Requires local FS
 After=local-fs.target
 
 # Do not start after basic.target!

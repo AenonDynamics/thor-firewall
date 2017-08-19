@@ -1,6 +1,6 @@
 {
     "name": "thor-firewall",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "package-monster": "0.2.0",
     "description": "THOR Firewall IPTables Loader",
     "license": "MIT",
@@ -22,8 +22,8 @@
         ],
 
         "conf": [
-            "fw_rules.conf",
-            "thor.conf"
+            "config/fw_rules.conf",
+            "config/thor.conf"
         ],
 
         "sbin": [

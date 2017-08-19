@@ -60,9 +60,6 @@ sysctl_tweaks_ip4(){
     echo 0 > /proc/sys/net/ipv4/conf/all/log_martians
     echo 0 > /proc/sys/net/ipv4/conf/default/log_martians
 
-    # Adress Space Randomization
-    echo 1 > /proc/sys/kernel/randomize_va_space
-
     # ICMP Rate limiting to 200/s
     echo 2 > /proc/sys/net/ipv4/icmp_ratelimit
 
@@ -193,15 +190,29 @@ fw_status(){
 # Load Ruleset
 # ---------------------------------------
 fw_rules(){
+    # counter
+    NUM_RULES=0
+
     # Firewall Rules (external lists)
     if [ -f "$CONF_DIR/fw_rules.conf" ]; then
         while read ruleset
         do
-            # apply rule
+            # valid line ?
             if [ ! -z "$ruleset" ]; then
+                # apply rule
                 $IPT $ruleset
+
+                # check success
+                if [ $? -ne 0 ]; then
+                    echo "Error: cannot load rule. skipping.. $ruleset"
+                else
+                    # increment on success
+                    NUM_RULES=$((NUM_RULES+1))
+                fi
             fi
         done < "$CONF_DIR/fw_rules.conf"
+
+        echo "Rules loaded: $NUM_RULES"
     else
         echo "ERROR: No Rules recognized"
     fi
@@ -227,6 +238,9 @@ fw_startup(){
     $IPT -t filter -P INPUT DROP
     $IPT -t filter -P FORWARD DROP
     $IPT -t filter -P OUTPUT DROP
+
+    # allow commands to fail (invalid iptables rules will be ignored!)
+    set +e
 
      # apply firewall rules
     fw_rules
