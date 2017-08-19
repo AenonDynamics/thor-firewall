@@ -1,4 +1,4 @@
-### 0.2.3 ###
+### 0.3.0 ###
 * Added: Show total firewall-rule count
 * Changed: Invalid rules are skipped
 * Changed: Removed ASLR kernel setting
