@@ -13,15 +13,23 @@ an iptables firewall loader initialized via systemd
 
 ## Features ##
 
-TBD
+* Designed for Debian based systems
+* Load iptables via text file
+* Host or Router operation mode
+* Full systemd integration
+* suitable to use with OpenWRT
 
-## Distributions ##
+## Docs ##
+
+* [OpenWRT integration](docs/openwrt.md)
+
+## Environments ##
 
 Tested with:
 
-* Debian Jessie 8.7
-* Debian Stretch 9.0
-* Debian Stretch 9.1
+* Debian Jessie 
+* Debian Stretch
+* OpenWRT 18.06
 
 ## Contribution ##
 

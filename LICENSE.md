@@ -1,6 +1,6 @@
 The MIT License (X11 License)
 
-Copyright (c) 2015-2017 Andi Dittrich, 2016-2017 Aenon Dynamics
+Copyright (c) 2015-2019 Andi Dittrich, 2016-2019 Aenon Dynamics
 
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
