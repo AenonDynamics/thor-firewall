@@ -6,17 +6,59 @@
 #   | | |  _  | |_| |  _ <_____|  _| | | | |  __/\ V  V / (_| | | |
 #   |_| |_| |_|\___/|_| \_\    |_|   |_|_|  \___| \_/\_/ \__,_|_|_|
 #
-# iptables based firewall framework
+# iptables loader
 # License: MIT (X11) License
-# Copyright: 2015-2017 Andi Dittrich, 2016-2017 Aenon Dynamics
-# https://aenon-dynamics.com/go/thor-firewall
+# Copyright: 2015-2021 Andi Dittrich, 2016-2021 Aenon Dynamics
+# https://github.com/AenonDynamics/thor-firewall
 #
+
+_VERSION="1.0.0"
+_LICENSE="MPL-2.0"
+_REPOSITORY="https://github.com/AenonDynamics/thor-firewall"
+
+show_usage(){
+    cat << EOF
+Usage: thor-firewall <command> [args...]
+
+Options:
+    -h,--help               Displays this help
+    -v,--version            Displays version
+
+Commands:
+    start                   Initialize firewall rules/tables/chains
+    stop                    Flush all iptables chains/rules
+    restart                 Reload/Initialize firewall rules/tables/chains
+    open                    WARNING: Dropping all Firewall+NAT Rules and set system to ACCEPT ALL
+    status                  Show all configures rules/tables/chains
+
+EOF
+    exit 0
+}
+
+show_version(){
+    cat << EOF
+thor-firewall » v${_VERSION} » iptables loader
+License: ${_LICENSE} https://opensource.org/licenses/${_LICENSE}
+Repository: ${_REPOSITORY}
+EOF
+    exit 0
+}
+
+# simple processing for help+versioning commands
+[ "$1" = "--help" ] || [ "$1" = "-h" ] || [ -z "$1" ] && show_usage
+[ "$1" = "--version" ] || [ "$1" = "-v" ] && show_version
 
 # fail on error
 set -e
 
 # Config directory (debian, ubuntu)
 CONF_DIR="/etc/thor-firewall"
+
+# load bash functions lib
+source /usr/share/thor-firewall/bash-functions
+
+# config exist ?
+[ ! -f "$CONF_DIR/thor.conf" ] && panic "ERROR: thor.conf doesn't exist"
 
 # load config
 source "$CONF_DIR/thor.conf"
@@ -67,42 +109,23 @@ sysctl_tweaks_ip4(){
     echo 30 > /proc/sys/net/ipv4/tcp_fin_timeout
 }
 
-# Simple Header
-# ---------------------------------------
-print_heading(){
-    if [ $# -ne 1 ]; then
-        return 1
-    fi
-
-    # light grey
-    echo -e '\x1B[1;34m'
-    echo "_______________________________________________________________"
-    echo ""
-    echo " $1"
-    echo "_______________________________________________________________"
-    echo -e '\x1B[39m'
-}
-
 # Startup Checks
 # ---------------------------------------
 fw_startup_check(){
     # check for iptables
     if [ ! -x $IPT ]; then
-        echo "Iptables command not found"
-        exit 1
+        panic "ERROR: iptables command not found"
     fi
 
     # check for ipset (not empty, bin available)
     if [ ! -z $IPS ] && [ ! -x $IPS ]; then
-        echo "IPSET command not found"
-        exit 1
+        panic "ERROR: ipset command not found"
     fi
 
     # check for root user
     USER_ID="$(id -u)"
     if [ ! $USER_ID -eq 0 ]; then
-        echo "Please run this script as root"
-        exit 1
+        panic "ERROR: please run this script as root"
     fi
 }
 
@@ -187,41 +210,60 @@ fw_status(){
     $IPT -t mangle -n -L -v --line-numbers
 }
 
-# Load Ruleset
+# Load Ruleset (single file)
 # ---------------------------------------
-fw_rules(){
+fw_load_rule_file(){
+    log_info "processing file [$1]"
+
     # counter
     NUM_RULES=0
 
     # Firewall Rules (external lists)
-    if [ -f "$CONF_DIR/fw_rules.conf" ]; then
+    if [ -f "$1" ]; then
+        IFS=' '
         while read ruleset
         do
             # valid line ?
             if [ ! -z "$ruleset" ]; then
                 # apply rule
-                $IPT $ruleset
-
-                # check success
-                if [ $? -ne 0 ]; then
-                    echo "Error: cannot load rule. skipping.. $ruleset"
-                else
+                $IPT $ruleset && {
                     # increment on success
                     NUM_RULES=$((NUM_RULES+1))
-                fi
+                } || {
+                    log_error "ERROR: cannot load rule. skipping.. $ruleset"
+                }
             fi
-        done < "$CONF_DIR/fw_rules.conf"
+        done < "$1"
 
-        echo "Rules loaded: $NUM_RULES"
+        log_success "rules loaded: $NUM_RULES"
     else
-        echo "ERROR: No Rules recognized"
+        log_error "ERROR: file [$1] doesn't exist"
     fi
+}
+
+# Load Ruleset (multiple files)
+# ---------------------------------------
+fw_load_rules_bulk(){
+    # Firewall Rules (external lists)
+    if [ ! -d "$1" ]; then
+        log_error "ERROR: [$1] doesn't exist/not a directory"
+        return 1
+    fi
+    
+    # get all *.conf file with leading priority "00-"
+    find $1 -type f,l | grep -E '/[0-9]+-.*\.conf$' | sort | while read -r file
+    do
+        # load ruleset
+        fw_load_rule_file $file
+    done
 }
 
 # Startup (Init)
 # Flush all rules and set state to BLOCK ALL
 # ---------------------------------------
 fw_startup(){
+    print_subheading "initializing thor-firewall"
+    
     # check user, binaries
     fw_startup_check
 
@@ -239,14 +281,18 @@ fw_startup(){
     $IPT -t filter -P FORWARD DROP
     $IPT -t filter -P OUTPUT DROP
 
-    # allow commands to fail (invalid iptables rules will be ignored!)
-    set +e
-
-     # apply firewall rules
-    fw_rules
+    # apply firewall rules
+    # legacy config file exist ?
+    if [ -f "$CONF_DIR/fw_rules.conf" ]; then
+        log_info "using legacy configuration file"
+        fw_load_rule_file $CONF_DIR/fw_rules.conf
+    else
+        log_info "using configuration fileset in $CONF_DIR/rules.ip4.d"
+        fw_load_rules_bulk $CONF_DIR/rules.ip4.d
+    fi
 
     # READY STATE
-    print_heading "SYSTEM ONLINE"
+    print_heading "rulesets applied - SYSTEM ONLINE"
 }
 
 # Command Dispatching
@@ -276,13 +322,12 @@ case "$1" in
     ;;
 
     status)
-    fw_status
-    exit 0
+        fw_status
+        exit 0
     ;;
 
     *)
-        echo "$0: THOR Firewall/Router"
-        echo "$0: { start | stop | restart | status | open }"
-        exit 0
+        show_usage
+        exit 1
     ;;
 esac

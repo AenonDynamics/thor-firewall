@@ -1,5 +1,6 @@
 [Unit]
-Description=THOR Firewall
+Description=thor-firewall iptables loader
+Documentation=https://github.com/AenonDynamics/thor-firewall
 
 # Start before Network Interfaces coming up
 Before=network-pre.target
@@ -13,6 +14,7 @@ DefaultDependencies=no
 
 [Service]
 ExecStart=/usr/sbin/thor-firewall start
+ExecReload=/usr/sbin/thor-firewall restart
 ExecStop=/usr/sbin/thor-firewall stop
 
 # Just Execute the shell script

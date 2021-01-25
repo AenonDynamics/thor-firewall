@@ -13,11 +13,33 @@ an iptables firewall loader initialized via systemd
 
 ## Features ##
 
-* Designed for Debian based systems
-* Load iptables via text file
-* Host or Router operation mode
-* Full systemd integration
-* suitable to use with OpenWRT
+* Load iptable rulesets via text files
+* Split rulesets into multiple files
+* Host or Router operation mode (forwarding enabled)
+* sysctl routing tweaks
+* Display current iptable ruleset
+* well documented sourcecode (line wise)
+* full systemd integration
+* Currently limited to ipv4
+
+## Usage ##
+
+```
+Usage: thor-firewall <command> [args...]
+
+Options:
+    -h,--help               Displays this help
+    -v,--version            Displays version
+
+Commands:
+    start                   Initialize firewall rules/tables/chains
+    stop                    Flush all iptables chains/rules
+    restart                 Reload/Initialize firewall rules/tables/chains
+    open                    WARNING: Dropping all Firewall+NAT Rules and set system to ACCEPT ALL
+    status                  Show all configures rules/tables/chains
+```
+
+
 
 ## Docs ##
 
@@ -27,13 +49,12 @@ an iptables firewall loader initialized via systemd
 
 Tested with:
 
-* Debian Jessie 
-* Debian Stretch
-* OpenWRT 18.06
+* Debian Jessie/Stretch/Buster
+* OpenWRT 18/19
 
 ## Contribution ##
 
 The **.deb** package is automatically generated via a **Continuous Delivery Pipeline** - please do not build packages manually!
 
 ## License ##
-THOR-FIREWALL is OpenSource and licensed under the Terms of [The MIT License (X11)](http://opensource.org/licenses/MIT) - your're welcome to contribute
+THOR-FIREWALL is OpenSource and licensed under the Terms of [Mozilla Public License 2.0 (MPL-2.0)](http://opensource.org/licenses/MPL-2.0) - your're welcome to contribute
