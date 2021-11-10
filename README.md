@@ -49,7 +49,7 @@ Commands:
 
 Tested with:
 
-* Debian Jessie/Stretch/Buster
+* Debian Jessie/Stretch/Buster/Bullseye
 * OpenWRT 18/19
 
 ## Contribution ##

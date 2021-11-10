@@ -3,6 +3,10 @@ Changelog
 
 ## Branch 1..X ##
 
+### 1.0.1 ###
+
+* Bugfix: changed to priority of the default rules to `10-base`
+
 ### 1.0.0 ###
 
 * Added: support for multiple configuration files using `conf.d` style directory. Only used in case legacy `fw_fules.conf` doesn't exist!

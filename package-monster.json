@@ -1,6 +1,6 @@
 {
     "name": "thor-firewall",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "package-monster": "0.2.0",
     "description": "THOR Firewall IPTables Loader",
     "license": "MPL-2.0",
@@ -27,8 +27,8 @@
 
         "etc": [
             {
-                "src": "config/rules.ip4.d/20-base.conf",
-                "dst": "thor-firewall/rules.ip4.d/20-base.conf"
+                "src": "config/rules.ip4.d/10-base.conf",
+                "dst": "thor-firewall/rules.ip4.d/10-base.conf"
             }
         ],
 
